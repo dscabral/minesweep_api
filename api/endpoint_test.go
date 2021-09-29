@@ -3,6 +3,7 @@ package api_test
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"io"
 	"minesweeper_api"
@@ -15,9 +16,14 @@ import (
 
 const (
 	validJson = `{
-    "num_line": 4,
-    "num_column": 4,
-    "num_mine": 6
+    "num_line": 1,
+    "num_column": 1,
+    "num_mine": 1
+}`
+	validClickJson = `{
+    "line": 1,
+    "column": 1,
+    "flag": false
 }`
 	invalidJson = `{`
 	contentType = "application/json"
@@ -72,7 +78,7 @@ func newClientServer(t *testing.T) clientServer {
 	}
 }
 
-func TestCreateAgentGroup(t *testing.T) {
+func TestCreateGame(t *testing.T) {
 	cli := newClientServer(t)
 	defer cli.server.Close()
 
@@ -80,25 +86,21 @@ func TestCreateAgentGroup(t *testing.T) {
 		req         string
 		contentType string
 		status      int
-		location    string
 	}{
 		"add a valida game": {
 			req:         validJson,
 			contentType: contentType,
 			status:      http.StatusCreated,
-			location:    "/agent_groups",
 		},
 		"add a valid game with a invalid json": {
 			req:         invalidJson,
 			contentType: contentType,
 			status:      http.StatusBadRequest,
-			location:    "/agent_groups",
 		},
 		"add a valid game without a content type": {
 			req:         validJson,
 			contentType: "",
 			status:      http.StatusUnsupportedMediaType,
-			location:    "/agent_groups",
 		},
 	}
 
@@ -117,4 +119,69 @@ func TestCreateAgentGroup(t *testing.T) {
 		})
 	}
 
+}
+
+func TestClickCell(t *testing.T) {
+	cli := newClientServer(t)
+	defer cli.server.Close()
+
+	id, err := createGame(t, &cli)
+	require.Nil(t, err, fmt.Sprintf("unexpected error: %s", err))
+
+	cases := map[string]struct {
+		id          string
+		req         string
+		contentType string
+		status      int
+	}{
+		"click on a valid cell": {
+			id:          id,
+			req:         validClickJson,
+			contentType: contentType,
+			status:      http.StatusOK,
+		},
+		"click on a valid cell with a invalid json": {
+			id:          id,
+			req:         invalidJson,
+			contentType: contentType,
+			status:      http.StatusBadRequest,
+		},
+		"click on a valid cell without a content type": {
+			id:          id,
+			req:         validClickJson,
+			contentType: "",
+			status:      http.StatusUnsupportedMediaType,
+		},
+		"click on a cell in a non-existing board": {
+			id:          "wrong",
+			req:         validClickJson,
+			contentType: contentType,
+			status:      http.StatusNotFound,
+		},
+	}
+
+	for desc, tc := range cases {
+		t.Run(desc, func(t *testing.T) {
+			req := testRequest{
+				client:      cli.server.Client(),
+				method:      http.MethodPost,
+				url:         fmt.Sprintf("%s/games/%s/click", cli.server.URL, tc.id),
+				contentType: tc.contentType,
+				body:        strings.NewReader(tc.req),
+			}
+			res, err := req.make()
+			assert.Nil(t, err, fmt.Sprintf("unexpected erro %s", err))
+			assert.Equal(t, tc.status, res.StatusCode, fmt.Sprintf("%s: expected status code %d got %d", desc, tc.status, res.StatusCode))
+		})
+	}
+}
+
+func createGame(t *testing.T, cli *clientServer) (string, error) {
+	t.Helper()
+
+	ag, err := cli.service.Start(1, 1, 1)
+	if err != nil {
+		return "", err
+	}
+	return ag, nil
 }

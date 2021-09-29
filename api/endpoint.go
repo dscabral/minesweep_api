@@ -31,8 +31,11 @@ func clickCellEnpoint(svc minesweeper_api.MineSweepService) endpoint.Endpoint {
 		}
 		cell, err := svc.Click(req.Line, req.Column, req.Flag, req.id)
 		if err != nil {
-			res := svc.Stop(req.id)
-			return res, nil
+			return nil, err
+		}
+
+		if cell.Bomb {
+			return svc.Stop(req.id), nil
 		}
 		return clickRes{
 			State:  cell.State,
