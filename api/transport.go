@@ -3,9 +3,9 @@ package api
 import (
 	"context"
 	"encoding/json"
-	mine "minesweeper_api"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-zoo/bone"
+	mine "minesweeper_api"
 	"net/http"
 	"strings"
 )
@@ -16,13 +16,13 @@ func MakeHandler(svcName string, svc mine.MineSweepService) http.Handler {
 	}
 	r := bone.New()
 
-	r.Post("/game", kithttp.NewServer(
+	r.Post("/games", kithttp.NewServer(
 		addGameEnpoint(svc),
 		decodeAddRequest,
 		EncodeResponse,
 		opts...,
 	))
-	r.Post("/game/:id/click", kithttp.NewServer(
+	r.Post("/games/:id/click", kithttp.NewServer(
 		clickCellEnpoint(svc),
 		decodeClickRequest,
 		EncodeResponse,
@@ -48,7 +48,9 @@ func decodeClickRequest(_ context.Context, r *http.Request) (interface{}, error)
 	if !strings.Contains(r.Header.Get("Content-Type"), "application/json") {
 		return nil, mine.ErrUnsupportedContentType
 	}
-	req := clickReq{}
+	req := clickReq{
+		id:     bone.GetValue(r, "id"),
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, mine.ErrMalformedEntity
 	}

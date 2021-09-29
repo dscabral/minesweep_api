@@ -3,26 +3,27 @@ package api
 import mine "minesweeper_api"
 
 type addReq struct {
-	Line   string `json:"num_line"`
-	Column string `json:"num_column"`
-	Mines  string `json:"num_mine"`
+	Line   int `json:"num_line"`
+	Column int `json:"num_column"`
+	Mines  int `json:"num_mine"`
 }
 
 func (req addReq) validate() error {
-	if req.Line == "" || req.Column == "" || req.Mines == "" {
+	if req.Line == 0 || req.Column == 0 || req.Mines == 0 {
 		return mine.ErrMalformedEntity
 	}
 	return nil
 }
 
 type clickReq struct {
-	Line   string `json:"line"`
-	Column string `json:"column"`
-	Flag   string `json:"flag"`
+	id string
+	Line   int `json:"line"`
+	Column int `json:"column"`
+	Flag   bool `json:"flag"`
 }
 
 func (req clickReq) validate() error {
-	if req.Line == "" || req.Column == "" {
+	if req.id == "" || req.Line == 0 || req.Column == 0 {
 		return mine.ErrMalformedEntity
 	}
 	return nil
